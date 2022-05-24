@@ -13,7 +13,7 @@ import math
 
 def SegmentsLabelProcess(labels):
     '''
-    对labels做后处理，防止出现label不连续现象
+    Post-processing the labels to prevent label discontinuity
     '''
     labels = np.array(labels, np.int64)
     H, W = labels.shape
@@ -39,9 +39,9 @@ class SLIC(object):
         self.min_size_factor = min_size_factor
         self.max_size_factor = max_size_factor
         self.sigma = sigma
-        # 数据standardization标准化,即提前全局BN
-        height, width, bands = Im.shape  # 影像的三个维度
-        data = np.reshape(HSI, [height * width, bands])
+        # data normalization
+        height, width, bands = Im.shape  # Dimesions of the input image
+        data = np.reshape(Im, [height * width, bands])
         minMax = preprocessing.StandardScaler()
         data = minMax.fit_transform(data)
         self.data = np.reshape(data, [height, width, bands])
@@ -65,7 +65,6 @@ class SLIC(object):
 
 
         out = mark_boundaries(img[:, :, [0, 1, 2]], segments)
-        # out = (img[:, :, [0, 1, 2]]-np.min(img[:, :, [0, 1, 2]]))/(np.max(img[:, :, [0, 1, 2]])-np.min(img[:, :, [0, 1, 2]]))
         plt.figure()
         plt.imshow(out)
         plt.show()
