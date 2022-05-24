@@ -24,33 +24,32 @@ samples_type = ['ratio', 'same_num'][0]
 torch.cuda.empty_cache()
 OA_ALL = []
 AA_ALL = []
-F_Score_ALL = []
+F_score_ALL = []
 KPP_ALL = []
 AVG_ALL = []
 Train_Time_ALL = []
 Test_Time_ALL = []
 
-Seed_List = [0, 1, 2, 3, 4]  # 随机种子点
+Seed_List = [0, 1, 2, 3, 4]  # random seed list
 
 
-data = cv2.imread('./Vaihigen/Results/images_vai1/top_mosaic_09cm_area1_3_0.tif')
-gt = cv2.imread('./Vaihigen/Results/mask_vai1/top_mosaic_09cm_area1_3_0.tif', cv2.IMREAD_GRAYSCALE)
+data = cv2.imread('./demo_src/top_mosaic_09cm_area1_3_0_ori_1_0.tif')
+gt = cv2.imread('./demo_src/top_mosaic_09cm_area1_3_0_gray_1_0.tif', cv2.IMREAD_GRAYSCALE)
 gt = gt + 1
 mask = np.unique(gt)
 
 
-
-train_ratio = 0.05  # 训练集比例。注意，训练集为按照‘每类’随机选取
+curr_train_ratio = 0.1
+train_ratio = 0.05  # Note that the training set is randomly selected according to 'each class'
 val_ratio = 0.1  
-class_count = 5  
+class_count = 5
 learning_rate = 5e-4 
-max_epoch = 600 
+max_epoch = 200
 dataset_name = "Vaihingen_"
 superpixel_scale=100
 
 
-superpixel_scale = Scale  #########################
-train_samples_per_class = 0.1  # 当定义为每类样本个数时,则该参数更改为训练样本数
+train_samples_per_class = curr_train_ratio
 val_samples = class_count
 cmap = cm.get_cmap('jet', class_count + 1)
 plt.set_cmap(cmap)
@@ -103,7 +102,7 @@ def GT_To_One_Hot(gt, class_count):
     :param class_count:
     :return:
     '''
-    GT_One_Hot = []  # 转化为one-hot形式的标签
+    GT_One_Hot = []  # transform to one_hot encoding
     for i in range(gt.shape[0]):
         for j in range(gt.shape[1]):
             temp = np.zeros(class_count, dtype=np.float32)
@@ -124,9 +123,9 @@ for curr_seed in Seed_List:
         for i in range(class_count):
             idx = np.where(gt_reshape == i + 1)[-1]
             samplesCount = len(idx)
-            rand_list = [i for i in range(samplesCount)]  # 用于随机的列表
+            rand_list = [i for i in range(samplesCount)]
             rand_idx = random.sample(rand_list,
-                                     np.ceil(samplesCount * train_ratio).astype('int32'))  # 随机数数量 四舍五入(改为上取整)
+                                     np.ceil(samplesCount * train_ratio).astype('int32'))
             rand_real_idx_per_class = idx[rand_idx]
             train_rand_idx.append(rand_real_idx_per_class)
         train_rand_idx = np.array(train_rand_idx)
@@ -137,23 +136,22 @@ for curr_seed in Seed_List:
                 train_data_index.append(a[j])
         train_data_index = np.array(train_data_index)
 
-        ##将测试集（所有样本，包括训练样本）也转化为特定形式
+        ## test dataset
         train_data_index = set(train_data_index)
         all_data_index = [i for i in range(len(gt_reshape))]
         all_data_index = set(all_data_index)
 
-        # 背景像元的标签
+        # background labels
         background_idx = np.where(gt_reshape == 0)[-1]
         background_idx = set(background_idx)
         test_data_index = all_data_index - train_data_index - background_idx
 
-        # 从测试集中随机选取部分样本作为验证集
-        val_data_count = int(val_ratio * (len(test_data_index) + len(train_data_index)))  # 验证集数量
+        # Randomly select some samples from the test set as the validation set
+        val_data_count = int(val_ratio * (len(test_data_index) + len(train_data_index)))
         val_data_index = random.sample(test_data_index, val_data_count)
         val_data_index = set(val_data_index)
-        test_data_index = test_data_index - val_data_index  # 由于验证集为从测试集分裂出，所以测试集应减去验证集
+        test_data_index = test_data_index - val_data_index
 
-        # 将训练集 验证集 测试集 整理
         test_data_index = list(test_data_index)
         train_data_index = list(train_data_index)
         val_data_index = list(val_data_index)
@@ -163,11 +161,11 @@ for curr_seed in Seed_List:
             idx = np.where(gt_reshape == i + 1)[-1]
             samplesCount = len(idx)
             real_train_samples_per_class = train_samples_per_class
-            rand_list = [i for i in range(samplesCount)]  # 用于随机的列表
+            rand_list = [i for i in range(samplesCount)]
             if real_train_samples_per_class > samplesCount:
                 real_train_samples_per_class = samplesCount
             rand_idx = random.sample(rand_list,
-                                     real_train_samples_per_class)  # 随机数数量 四舍五入(改为上取整)
+                                     real_train_samples_per_class)
             rand_real_idx_per_class_train = idx[rand_idx[0:real_train_samples_per_class]]
             train_rand_idx.append(rand_real_idx_per_class_train)
         train_rand_idx = np.array(train_rand_idx)
@@ -183,37 +181,34 @@ for curr_seed in Seed_List:
         all_data_index = [i for i in range(len(gt_reshape))]
         all_data_index = set(all_data_index)
 
-        # 背景像元的标签
         background_idx = np.where(gt_reshape == 0)[-1]
         background_idx = set(background_idx)
         test_data_index = all_data_index - train_data_index - background_idx
 
-        # 从测试集中随机选取部分样本作为验证集
-        val_data_count = int(val_samples)  # 验证集数量
+        val_data_count = int(val_samples)
         val_data_index = random.sample(test_data_index, val_data_count)
         val_data_index = set(val_data_index)
 
         test_data_index = test_data_index - val_data_index
-        # 将训练集 验证集 测试集 整理
         test_data_index = list(test_data_index)
         train_data_index = list(train_data_index)
         val_data_index = list(val_data_index)
 
-    # 获取训练样本的标签图
+    # Get the label map of the training samples
     train_samples_gt = np.zeros(gt_reshape.shape)
     for i in range(len(train_data_index)):
         train_samples_gt[train_data_index[i]] = gt_reshape[train_data_index[i]]
         pass
 
-    # 获取测试样本的标签图
+    # Get the label map of the test samples
     test_samples_gt = np.zeros(gt_reshape.shape)
     for i in range(len(test_data_index)):
         test_samples_gt[test_data_index[i]] = gt_reshape[test_data_index[i]]
         pass
 
-    Test_GT = np.reshape(test_samples_gt, [m, n])  # 测试样本图
+    Test_GT = np.reshape(test_samples_gt, [m, n])
 
-    # 获取验证集样本的标签图
+    # Get the label map of the validate samples
     val_samples_gt = np.zeros(gt_reshape.shape)
     for i in range(len(val_data_index)):
         val_samples_gt[val_data_index[i]] = gt_reshape[val_data_index[i]]
@@ -231,7 +226,7 @@ for curr_seed in Seed_List:
     test_samples_gt_onehot = np.reshape(test_samples_gt_onehot, [-1, class_count]).astype(int)
     val_samples_gt_onehot = np.reshape(val_samples_gt_onehot, [-1, class_count]).astype(int)
 
-    # 训练集
+    # train sets
     train_label_mask = np.zeros([m * n, class_count])
     temp_ones = np.ones([class_count])
     train_samples_gt = np.reshape(train_samples_gt, [m * n])
@@ -240,7 +235,7 @@ for curr_seed in Seed_List:
             train_label_mask[i] = temp_ones
     train_label_mask = np.reshape(train_label_mask, [m * n, class_count])
 
-    # 测试集
+    # test sets
     test_label_mask = np.zeros([m * n, class_count])
     temp_ones = np.ones([class_count])
     test_samples_gt = np.reshape(test_samples_gt, [m * n])
@@ -249,7 +244,7 @@ for curr_seed in Seed_List:
             test_label_mask[i] = temp_ones
     test_label_mask = np.reshape(test_label_mask, [m * n, class_count])
 
-    # 验证集
+    # validate sets
     val_label_mask = np.zeros([m * n, class_count])
     temp_ones = np.ones([class_count])
     val_samples_gt = np.reshape(val_samples_gt, [m * n])
@@ -268,15 +263,15 @@ for curr_seed in Seed_List:
     Q = torch.from_numpy(Q).to(device)
     A = torch.from_numpy(A).to(device)
 
-    # 转到GPU
+    # To GPU
     train_samples_gt = torch.from_numpy(train_samples_gt.astype(np.float32)).to(device)
     test_samples_gt = torch.from_numpy(test_samples_gt.astype(np.float32)).to(device)
     val_samples_gt = torch.from_numpy(val_samples_gt.astype(np.float32)).to(device)
-    # 转到GPU
+
     train_samples_gt_onehot = torch.from_numpy(train_samples_gt_onehot.astype(np.float32)).to(device)
     test_samples_gt_onehot = torch.from_numpy(test_samples_gt_onehot.astype(np.float32)).to(device)
     val_samples_gt_onehot = torch.from_numpy(val_samples_gt_onehot.astype(np.float32)).to(device)
-    # 转到GPU
+
     train_label_mask = torch.from_numpy(train_label_mask.astype(np.float32)).to(device)
     test_label_mask = torch.from_numpy(test_label_mask.astype(np.float32)).to(device)
     val_label_mask = torch.from_numpy(val_label_mask.astype(np.float32)).to(device)
@@ -309,8 +304,8 @@ for curr_seed in Seed_List:
                              printFlag=True):
         if False == require_AA_KPP:
             with torch.no_grad():
-                available_label_idx = (train_samples_gt != 0).float()  # 有效标签的坐标,用于排除背景
-                available_label_count = available_label_idx.sum()  # 有效标签的个数
+                available_label_idx = (train_samples_gt != 0).float()  # exclude background
+                available_label_count = available_label_idx.sum()  # number of valid tags
                 correct_prediction = torch.where(
                     torch.argmax(network_output, 1) == torch.argmax(train_samples_gt_onehot, 1),
                     available_label_idx, zeros).sum()
@@ -319,16 +314,16 @@ for curr_seed in Seed_List:
                 return OA
         else:
             with torch.no_grad():
-                # 计算OA
-                available_label_idx = (train_samples_gt != 0).float()  # 有效标签的坐标,用于排除背景
-                available_label_count = available_label_idx.sum()  # 有效标签的个数
+                # OA
+                available_label_idx = (train_samples_gt != 0).float()
+                available_label_count = available_label_idx.sum()
                 correct_prediction = torch.where(
                     torch.argmax(network_output, 1) == torch.argmax(train_samples_gt_onehot, 1),
                     available_label_idx, zeros).sum()
                 OA = correct_prediction.cpu() / available_label_count
                 OA = OA.cpu().numpy()
 
-                # 计算AA
+                # AA
                 zero_vector = np.zeros([class_count])
                 output_data = network_output.cpu().numpy()
                 train_samples_gt = train_samples_gt.cpu().numpy()
@@ -351,8 +346,7 @@ for curr_seed in Seed_List:
                 test_AA = np.average(test_AC_list)
 
 
-                # 计算F1-score
-
+                # F1-score
                 test_pre_label_list = []
                 test_real_label_list = []
                 output_data = np.reshape(output_data, [m * n, class_count])
@@ -368,7 +362,7 @@ for curr_seed in Seed_List:
                 F_score = metrics.f1_score(test_pre_label_list.astype(np.int16), test_real_label_list.astype(np.int16), average='macro')
                 test_F = F_score
 
-                # 计算KPP
+                # KPP
                 test_pre_label_list = []
                 test_real_label_list = []
                 output_data = np.reshape(output_data, [m * n, class_count])
@@ -385,7 +379,7 @@ for curr_seed in Seed_List:
                                                   test_real_label_list.astype(np.int16))
                 test_kpp = kappa
 
-                # 输出
+                # output
                 if printFlag:
                     print("test OA=", OA, "AA=", test_AA, "F_scores=", test_F, 'kpp=', test_kpp)
                     print('acc per class:')
@@ -393,12 +387,12 @@ for curr_seed in Seed_List:
 
                 OA_ALL.append(OA)
                 AA_ALL.append(test_AA)
-                F_Score_ALL.append(test_F)
+                F_score_ALL.append(test_F)
                 KPP_ALL.append(test_kpp)
                 AVG_ALL.append(test_AC_list)
 
-                # 保存数据信息
-                f = open('./Vai11_results/' + dataset_name + '_results.txt', 'a+')
+                # Save
+                f = open('./results/' + dataset_name + '_results.txt', 'a+')
                 str_results = '\n======================' \
                               + " learning rate=" + str(learning_rate) \
                               + " epochs=" + str(max_epoch) \
@@ -417,7 +411,7 @@ for curr_seed in Seed_List:
                 return OA
 
 
-    # 训练
+    # training
     optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)  # ,weight_decay=0.0001
     best_loss = 99999
     net.train()
@@ -448,7 +442,7 @@ for curr_seed in Seed_List:
             net.train()
     toc1 = time.perf_counter()
     print("\n\n====================training done. starting evaluation...========================\n")
-    training_time = toc1 - tic1 + LDA_SLIC_Time  # 分割耗时需要算进去
+    training_time = toc1 - tic1 + LDA_SLIC_Time
     Train_Time_ALL.append(training_time)
 
     torch.cuda.empty_cache()
@@ -464,8 +458,8 @@ for curr_seed in Seed_List:
         print("{}\ttest loss={}\t test OA={}".format(str(i + 1), testloss, testOA))
         # 计算
         classification_map = torch.argmax(output, 1).reshape([height, width]).cpu() + 1
-        Draw_Classification_Map(classification_map, "./Vai11_results/" + dataset_name + str(testOA))
-        testing_time = toc2 - tic2 + LDA_SLIC_Time  # 分割耗时需要算进去
+        Draw_Classification_Map(classification_map, "./results/" + dataset_name + str(testOA))
+        testing_time = toc2 - tic2 + LDA_SLIC_Time
         Test_Time_ALL.append(testing_time)
 
 
@@ -480,23 +474,22 @@ AVG_ALL = np.array(AVG_ALL)
 Train_Time_ALL = np.array(Train_Time_ALL)
 Test_Time_ALL = np.array(Test_Time_ALL)
 
-print("\ntrain_ratio={}".format(curr_train_ratio),
-      "\n==============================================================================")
+print("==============================================================================")
 print('OA=', np.mean(OA_ALL), '+-', np.std(OA_ALL))
 print('AA=', np.mean(AA_ALL), '+-', np.std(AA_ALL))
-print('F_Score=', np.mean(F_Score_ALL), '+-', np.std(F_Score_ALL))
+print('F_Score=', np.mean(F_score_ALL), '+-', np.std(F_score_ALL))
 print('Kpp=', np.mean(KPP_ALL), '+-', np.std(KPP_ALL))
 print('AVG=', np.mean(AVG_ALL, 0), '+-', np.std(AVG_ALL, 0))
 print("Average training time:{}".format(np.mean(Train_Time_ALL)))
 print("Average testing time:{}".format(np.mean(Test_Time_ALL)))
 
-# 保存数据信息
-f = open('./Vai11_results/' + dataset_name + '_results.txt', 'a+')
+# Save
+f = open('./results/' + dataset_name + '_results.txt', 'a+')
 str_results = '\n\n************************************************' \
               + "\ntrain_ratio={}".format(curr_train_ratio) \
               + '\nOA=' + str(np.mean(OA_ALL)) + '+-' + str(np.std(OA_ALL)) \
               + '\nAA=' + str(np.mean(AA_ALL)) + '+-' + str(np.std(AA_ALL)) \
-              + '\nAA=' + str(np.mean(F_Score_ALL)) + '+-' + str(np.std(F_Score_ALL)) \
+              + '\nAA=' + str(np.mean(F_score_ALL)) + '+-' + str(np.std(F_score_ALL)) \
               + '\nKpp=' + str(np.mean(KPP_ALL)) + '+-' + str(np.std(KPP_ALL)) \
               + '\nAVG=' + str(np.mean(AVG_ALL, 0)) + '+-' + str(np.std(AVG_ALL, 0)) \
               + "\nAverage training time:{}".format(np.mean(Train_Time_ALL)) \
