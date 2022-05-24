@@ -90,10 +90,10 @@ class Block(nn.Module):
 
 class Feature_extractors(nn.Module):
     """
-    Modified Alighed Xception
+    Modified feature extractors
     """
     def __init__(self, inplanes=3, os=16):
-        super(Xception, self).__init__()
+        super(Feature_extractors, self).__init__()
 
         if os == 16:
             entry_block3_stride = 2
