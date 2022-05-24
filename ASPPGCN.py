@@ -39,7 +39,7 @@ class GCNLayer(nn.Module):
         e = torch.sigmoid(torch.matmul(H_xx1, H_xx1.t()))
         zero_vec = -9e15 * torch.ones_like(e)
         A = torch.where(self.mask > 0, e, zero_vec) + self.I
-        if model != 'normal': A = torch.clamp(A, 0.1)  # This is a trick for the Indian Pines.
+        if model != 'normal': A = torch.clamp(A, 0.1)
         A = F.softmax(A, dim=1)
         output = self.Activition(torch.mm(A, self.GCN_liner_out_1(H)))
 
@@ -74,7 +74,7 @@ class ASPPGCN(nn.Module):
         self.Q = Q
         self.A = A
         self.model = model
-        self.norm_col_Q = Q / (torch.sum(Q, 0, keepdim=True))  # 列归一化Q
+        self.norm_col_Q = Q / (torch.sum(Q, 0, keepdim=True))  # Normalize by column Q
 
         layers_count = 2
         # Spectra Transformation Sub-Network
@@ -138,7 +138,7 @@ class ASPPGCN(nn.Module):
                 self.CNN_denoise_4.add_module('CNN_denoise_Conv' + str(i), nn.Conv2d(3, 3, kernel_size=(1, 1)))
                 self.CNN_denoise_4.add_module('CNN_denoise_Act' + str(i), nn.LeakyReLU())
         # Atrous Conv
-        self.xception_features = Xception(3, 16)
+        self.dense_features = Feature_extractors(3, 16)
 
         # Pixel-level Convolutional Sub-Network
         self.ASPP = ASPP_module(2048, 256, 16)
@@ -181,7 +181,7 @@ class ASPPGCN(nn.Module):
         clean_x = noise  # 直连
 
         clean_x_flatten = clean_x.reshape([h * w, -1])
-        superpixels_flatten = torch.mm(self.norm_col_Q.t(), clean_x_flatten)  # 低频部分
+        superpixels_flatten = torch.mm(self.norm_col_Q.t(), clean_x_flatten)
 
 
         noise1 = self.CNN_denoise_1(torch.unsqueeze(noise.permute([2, 0, 1]), 0))
@@ -191,7 +191,7 @@ class ASPPGCN(nn.Module):
         noise1 = torch.squeeze(noise1, 0).permute([1, 2, 0])
         clean_x_1 = noise1
         hx = clean_x_1
-        CNN_result,low_level_features = self.xception_features(torch.unsqueeze(hx.permute([2, 0, 1]), 0))  # spectral-spatial convolution
+        CNN_result,low_level_features = self.dense_features(torch.unsqueeze(hx.permute([2, 0, 1]), 0))  # spectral-spatial convolution
         CNN_result = self.ASPP(CNN_result)
         CNN_result = self.conv1(CNN_result)
         CNN_result = self.bn1(CNN_result)
@@ -220,7 +220,7 @@ class ASPPGCN(nn.Module):
 
         GCN_result = torch.matmul(self.Q, H)
 
-        # 特征融合
+        # fusion
         Y = torch.cat([GCN_result, CNN_result], dim=-1)
         Y = self.Softmax_linear(Y)
         Y = F.softmax(Y, -1)
