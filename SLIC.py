@@ -1,5 +1,6 @@
 # _*_ coding:   utf-8 _*_
 # @Time     :    10:26 AM
+# https://github.com/qichaoliu/CNN_Enhanced_GCN
 
 import numpy as np
 import matplotlib.pyplot as plt
